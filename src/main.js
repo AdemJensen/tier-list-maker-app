@@ -33,6 +33,14 @@ const defaultPreferences = Object.freeze({
   imageSize: 88,
 });
 
+const previewImageDataUrl = `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(`
+  <svg xmlns="http://www.w3.org/2000/svg" width="240" height="240" viewBox="0 0 240 240">
+    <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#4169e1"/><stop offset="1" stop-color="#7c3aed"/></linearGradient></defs>
+    <rect width="240" height="240" rx="34" fill="url(#g)"/>
+    <path d="m120 48 70 38-70 38-70-38 70-38Zm-70 82 70 38 70-38M50 172l70 38 70-38" fill="none" stroke="#fff" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>
+`)}`;
+
 function makeId(prefix = "item") {
   return `${prefix}-${crypto.randomUUID()}`;
 }
@@ -304,11 +312,16 @@ function applyVisualPreferences() {
   const title = document.querySelector("#brand-title");
   const subtitle = document.querySelector("#brand-subtitle");
 
-  appShell.style.setProperty("--tier-font-size", `${preferences.tierFontSize}px`);
-  appShell.style.setProperty("--candidate-font-size", `${preferences.candidateFontSize}px`);
-  appShell.style.setProperty("--candidate-composite-font-size", `${Math.max(9, Math.round(preferences.candidateFontSize * 0.78))}px`);
-  appShell.style.setProperty("--candidate-image-size", `${preferences.imageSize}px`);
-  appShell.style.setProperty("--candidate-image-plain-size", `${Math.round(preferences.imageSize * 78 / 88)}px`);
+  const sizeVariables = {
+    "--tier-font-size": `${preferences.tierFontSize}px`,
+    "--candidate-font-size": `${preferences.candidateFontSize}px`,
+    "--candidate-composite-font-size": `${Math.max(9, Math.round(preferences.candidateFontSize * 0.78))}px`,
+    "--candidate-image-size": `${preferences.imageSize}px`,
+    "--candidate-image-plain-size": `${Math.round(preferences.imageSize * 78 / 88)}px`,
+  };
+  for (const target of [document.documentElement, appShell]) {
+    for (const [name, value] of Object.entries(sizeVariables)) target.style.setProperty(name, value);
+  }
 
   logo.hidden = !preferences.logoVisible;
   if (preferences.logoImage) {
@@ -456,6 +469,17 @@ function renderBasicSettings() {
     ? `<img src="${preferences.logoImage}" alt="当前 Logo">`
     : icon("layers", 24);
   settingsBody.innerHTML = `
+    <section class="basic-live-preview" aria-label="当前效果预览">
+      <div class="preview-heading"><div><h3>当前效果预览</h3><p>滑块调整会立即反映在这里。</p></div><span>实时预览</span></div>
+      <div class="preview-tier-board">
+        <div class="preview-tier-label">预览分档</div>
+        <div class="preview-tier-content">
+          <article class="candidate-card kind-text"><span>纯文本选项</span></article>
+          <article class="candidate-card kind-image"><img src="${previewImageDataUrl}" alt="纯图片选项"></article>
+          <article class="candidate-card kind-composite"><img src="${previewImageDataUrl}" alt="图文选项"><span>图片 + 文本</span></article>
+        </div>
+      </div>
+    </section>
     <div class="basic-settings-grid">
       <section class="basic-setting-card brand-setting-card">
         <div class="basic-setting-heading"><div><h3>左上角 Logo</h3><p>支持上传常见图片格式，默认使用内置图标。</p></div><label class="visibility-toggle"><input id="logo-visible" type="checkbox" ${preferences.logoVisible ? "checked" : ""}>显示</label></div>
