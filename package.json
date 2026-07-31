@@ -1,6 +1,6 @@
 {
   "name": "tier-list-maker",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "private": true,
   "type": "module",
   "description": "可自由拖拽候选项、自定义分档并导出图片的跨平台从夯到拉排名生成器",
@@ -39,12 +39,14 @@
     },
     "mac": {
       "category": "public.app-category.entertainment",
+      "icon": "resources/icons/app-icon.png",
       "target": [
         "dmg",
         "zip"
       ]
     },
     "win": {
+      "icon": "resources/icons/app-icon.ico",
       "target": [
         "nsis",
         "portable"
