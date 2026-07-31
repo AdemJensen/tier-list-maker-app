@@ -1,6 +1,6 @@
 {
   "name": "tier-list-maker",
-  "version": "0.5.4",
+  "version": "0.5.5",
   "private": true,
   "type": "module",
   "description": "可自由拖拽候选项、自定义分档并导出图片的跨平台从夯到拉排名生成器",
