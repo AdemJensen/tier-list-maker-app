@@ -4,6 +4,9 @@ const fs = require("fs/promises");
 
 let mainWindow;
 
+// 产品改名后继续使用旧版数据目录，避免升级时丢失本地榜单和设置。
+app.setPath("userData", path.join(app.getPath("appData"), "直播分档榜"));
+
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1440,
@@ -11,7 +14,7 @@ function createWindow() {
     minWidth: 560,
     minHeight: 600,
     backgroundColor: "#f3f5f9",
-    title: "直播分档榜",
+    title: "从夯到拉排名生成器",
     autoHideMenuBar: true,
     webPreferences: {
       preload: path.join(__dirname, "preload.cjs"),
@@ -34,7 +37,7 @@ ipcMain.handle("save-board-image", async (_event, rect) => {
 
   const result = await dialog.showSaveDialog(mainWindow, {
     title: "导出榜单图片",
-    defaultPath: `直播分档榜-${new Date().toISOString().slice(0, 10)}.png`,
+    defaultPath: `从夯到拉排名生成器-${new Date().toISOString().slice(0, 10)}.png`,
     filters: [{ name: "PNG 图片", extensions: ["png"] }],
   });
 

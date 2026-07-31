@@ -25,9 +25,9 @@ const defaultPreferences = Object.freeze({
   logoVisible: true,
   logoImage: null,
   titleVisible: true,
-  titleText: "直播分档榜",
+  titleText: "从夯到拉排名生成器",
   subtitleVisible: true,
-  subtitleText: "LIVE TIER BOARD",
+  subtitleText: "TIER LIST MAKER",
   tierFontSize: 18,
   candidateFontSize: 14,
   imageSize: 88,
@@ -86,7 +86,7 @@ app.innerHTML = `
     <header class="toolbar">
       <div class="brand" id="brand">
         <span class="brand-mark" id="brand-logo">${icon("layers", 22)}</span>
-        <div class="brand-copy" id="brand-copy"><strong id="brand-title">直播分档榜</strong><small id="brand-subtitle">LIVE TIER BOARD</small></div>
+        <div class="brand-copy" id="brand-copy"><strong id="brand-title">从夯到拉排名生成器</strong><small id="brand-subtitle">TIER LIST MAKER</small></div>
       </div>
       <div class="toolbar-actions" aria-label="主要操作">
         <button class="icon-button" id="settings-button" type="button" title="设置">${icon("settings")}<span>设置</span></button>

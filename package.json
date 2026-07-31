@@ -1,9 +1,9 @@
 {
-  "name": "live-tier-board",
-  "version": "0.4.3",
+  "name": "tier-list-maker",
+  "version": "0.5.0",
   "private": true,
   "type": "module",
-  "description": "用于直播展示的跨平台拖拽分档榜工具",
+  "description": "可自由拖拽候选项、自定义分档并导出图片的跨平台从夯到拉排名生成器",
   "main": "electron/main.cjs",
   "scripts": {
     "dev": "concurrently -k \"vite --host 127.0.0.1\" \"wait-on http://127.0.0.1:5173 && electron .\"",
@@ -26,8 +26,8 @@
     "wait-on": "^8.0.4"
   },
   "build": {
-    "appId": "com.live-tier-board.app",
-    "productName": "直播分档榜",
+    "appId": "com.tier-list-maker.app",
+    "productName": "从夯到拉排名生成器",
     "asar": true,
     "files": [
       "dist/**/*",

@@ -1,3 +1,4 @@
+// 保留旧版数据库名，让产品改名后的版本继续读取现有本地数据。
 const DB_NAME = "live-tier-board";
 const STORE_NAME = "app";
 const STATE_KEY = "state";

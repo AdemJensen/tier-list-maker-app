@@ -79,3 +79,11 @@ npm run dist:win
 ```
 
 构建产物会输出到 `release/` 目录。
+
+## Credits
+
+This app is designed by human, and completely featured by OpenAI Codex. Codex is sooooooo amazing!
+
+## License
+
+MIT
