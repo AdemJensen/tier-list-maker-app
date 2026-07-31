@@ -95,7 +95,7 @@ button { color: inherit; }
   grid-template-rows: repeat(var(--tier-count), minmax(var(--tier-compressed-min-height), auto));
   overflow: visible;
   border: 1.5px solid #1f2937;
-  border-radius: 7px;
+  border-radius: 0;
   background: #fff;
 }
 
@@ -213,7 +213,7 @@ button { color: inherit; }
 .preview-heading h3 { margin: 0; font-size: 13px; }
 .preview-heading p { margin: 3px 0 0; color: #76849a; font-size: 10px; }
 .preview-heading > span { padding: 4px 8px; border-radius: 99px; color: var(--blue); background: #e5edff; font-size: 10px; font-weight: 650; }
-.preview-tier-board { min-width: 0; display: grid; grid-template-columns: 86px minmax(0, 1fr); overflow: hidden; border: 1.5px solid #293241; border-radius: 8px; background: #fff; }
+.preview-tier-board { min-width: 0; display: grid; grid-template-columns: 86px minmax(0, 1fr); overflow: hidden; border: 1.5px solid #293241; border-radius: 0; background: #fff; }
 .preview-tier-label { display: flex; align-items: center; justify-content: center; padding: 9px; border-right: 1px solid #293241; background: #f7c940; color: #15191f; font-size: var(--tier-font-size); font-weight: 700; text-align: center; overflow-wrap: anywhere; }
 .preview-tier-content { min-width: 0; min-height: 108px; max-height: 270px; display: flex; flex-wrap: wrap; align-items: center; align-content: center; gap: 10px; padding: 12px; overflow: auto; }
 .preview-tier-content .candidate-card { cursor: default; }
