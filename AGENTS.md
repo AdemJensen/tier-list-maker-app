@@ -302,9 +302,10 @@ npx electron-builder --win portable --x64
 交付文件命名：
 
 ```text
-从夯到拉排名生成器-<version>-Windows-x64.exe
-从夯到拉排名生成器-<version>-macOS-Apple-Silicon.zip
-从夯到拉排名生成器-<version>-macOS-Intel.zip
+release/v<version>/
+├── v<version>-win-x64.exe
+├── v<version>-mac-arm64.zip
+└── v<version>-mac-x64.zip
 ```
 
 发布前验证：

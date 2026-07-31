@@ -78,7 +78,15 @@ npm run dist:win # 生成 Intel/AMD 64 位（x64）Windows 便携版
 npm run dist     # 一次生成上述全部平台包
 ```
 
-构建产物会输出到 `release/` 目录。
+每个版本的构建产物会单独输出到 `release/v<版本号>/`，文件名统一为
+`v<版本号>-<平台>-<架构>.<扩展名>`。例如 0.5.6 版本会生成：
+
+```text
+release/v0.5.6/
+├── v0.5.6-mac-arm64.zip
+├── v0.5.6-mac-x64.zip
+└── v0.5.6-win-x64.exe
+```
 
 ## Credits
 
