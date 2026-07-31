@@ -21,7 +21,7 @@ const tierTemplates = {
 };
 
 const defaultPreferences = Object.freeze({
-  poolLayout: "scroll",
+  poolLayout: "wrap",
   logoVisible: true,
   logoImage: null,
   titleVisible: true,
@@ -228,7 +228,7 @@ function normalizeState(input) {
   const savedPreferences = input.preferences || {};
   const preferences = {
     ...defaultPreferences,
-    poolLayout: savedPreferences.poolLayout === "wrap" ? "wrap" : "scroll",
+    poolLayout: savedPreferences.poolLayout === "scroll" ? "scroll" : "wrap",
     logoVisible: savedPreferences.logoVisible !== false,
     logoImage: typeof savedPreferences.logoImage === "string" && savedPreferences.logoImage.startsWith("data:image/") ? savedPreferences.logoImage : null,
     titleVisible: savedPreferences.titleVisible !== false,
@@ -346,7 +346,7 @@ function applyVisualPreferences() {
 }
 
 function render() {
-  const poolLayout = state.preferences?.poolLayout === "wrap" ? "wrap" : "scroll";
+  const poolLayout = state.preferences?.poolLayout === "scroll" ? "scroll" : "wrap";
   const appShell = document.querySelector(".app-shell");
   appShell.classList.toggle("pool-wrap", poolLayout === "wrap");
   appShell.style.setProperty("--tier-count", state.tiers.length);
@@ -595,8 +595,8 @@ function renderCandidateSettings() {
     <section class="pool-layout-card">
       <div><h3>候选列表布局</h3><p>候选项较多时，选择保持单行滚动，或自动换行并增高候选列表。</p></div>
       <div class="layout-selector" role="group" aria-label="候选列表布局">
-        <button class="layout-option ${state.preferences?.poolLayout !== "wrap" ? "active" : ""}" data-pool-layout="scroll" type="button">横向滚动</button>
-        <button class="layout-option ${state.preferences?.poolLayout === "wrap" ? "active" : ""}" data-pool-layout="wrap" type="button">自动换行</button>
+        <button class="layout-option ${state.preferences?.poolLayout === "scroll" ? "active" : ""}" data-pool-layout="scroll" type="button">横向滚动</button>
+        <button class="layout-option ${state.preferences?.poolLayout !== "scroll" ? "active" : ""}" data-pool-layout="wrap" type="button">自动换行</button>
       </div>
     </section>
     <section class="candidate-manager">

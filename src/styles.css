@@ -29,7 +29,7 @@ button { color: inherit; }
   width: 100vw;
   height: 100vh;
   display: grid;
-  grid-template-rows: 68px minmax(max-content, 1fr) clamp(132px, 20vh, 196px);
+  grid-template-rows: 68px minmax(max-content, 1fr) minmax(max-content, clamp(132px, 20vh, 196px));
   gap: clamp(10px, 1.2vw, 18px);
   padding: 0 clamp(12px, 2vw, 30px) clamp(12px, 1.5vw, 24px);
   background: radial-gradient(circle at top right, #eef3ff 0, transparent 34%), #f3f5f9;
@@ -109,7 +109,7 @@ button { color: inherit; }
 .candidate-shelf {
   min-height: 0;
   display: grid;
-  grid-template-rows: 37px minmax(0, 1fr);
+  grid-template-rows: 37px minmax(max-content, 1fr);
   padding: 9px 12px 12px;
   border: 1px solid var(--border);
   border-radius: 13px;
@@ -307,7 +307,7 @@ button { color: inherit; }
 .toast.error { background: #b83d46; }
 
 @media (max-width: 720px) {
-  .app-shell { --tier-min-height: 104px; --tier-compressed-min-height: 58px; grid-template-rows: 62px minmax(max-content, 1fr) 142px; padding-inline: 8px; }
+  .app-shell { --tier-min-height: 104px; --tier-compressed-min-height: 58px; grid-template-rows: 62px minmax(max-content, 1fr) minmax(max-content, 142px); padding-inline: 8px; }
   .app-shell.pool-wrap { grid-template-rows: 62px minmax(max-content, 1fr) auto; }
   .brand small, .icon-button span, .shelf-hint { display: none; }
   .icon-button { width: 40px; justify-content: center; padding: 0; }
