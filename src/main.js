@@ -52,6 +52,11 @@ let draftTiers = [];
 let activeSettingsTab = "tiers";
 let draggedItemId = null;
 let persistTimer = null;
+let candidateEditorKind = "text";
+let pendingCandidateImages = [];
+let commaSessionDecision = null;
+let editingCandidateId = null;
+let editingCandidateImage = null;
 
 const app = document.querySelector("#app");
 
@@ -106,9 +111,39 @@ app.innerHTML = `
     </div>
   </dialog>
 
-  <div class="toast" id="toast" role="status"></div>
-  <input id="single-image-input" type="file" accept="image/*" hidden>
-  <input id="multi-image-input" type="file" accept="image/*" multiple hidden>
+  <dialog class="confirm-dialog" id="multi-text-dialog">
+    <div class="confirm-dialog-shell">
+      <h3>检测到可能输入多个标签</h3>
+      <p>是否导入为多个候选项？</p>
+      <div class="detected-tags" id="detected-tags"></div>
+      <label class="remember-choice"><input id="remember-comma-choice" type="checkbox">本次编辑都按此方式处理</label>
+      <footer><button class="button ghost" data-comma-decision="single" type="button">作为一个候选项</button><button class="button primary" data-comma-decision="split" type="button">导入为多个候选项</button></footer>
+    </div>
+  </dialog>
+
+  <dialog class="confirm-dialog" id="dedupe-dialog">
+    <div class="confirm-dialog-shell">
+      <h3>一键去重</h3>
+      <p>是否根据标签文本内容去重？将保留每个名称首次出现的候选项；纯图片会按文件名判断。</p>
+      <footer><button class="button ghost" id="cancel-dedupe" type="button">取消</button><button class="button primary" id="confirm-dedupe" type="button">确认去重</button></footer>
+    </div>
+  </dialog>
+
+  <dialog class="confirm-dialog edit-candidate-dialog" id="edit-candidate-dialog">
+    <div class="confirm-dialog-shell">
+      <h3>编辑候选项</h3>
+      <label class="field-label" for="edit-candidate-label">标签内容</label>
+      <input class="text-field" id="edit-candidate-label" type="text" placeholder="输入标签内容">
+      <label class="field-label">候选图片</label>
+      <div class="edit-image-area" id="edit-image-area"></div>
+      <div class="edit-image-actions"><button class="button secondary" id="replace-candidate-image" type="button">${icon("image", 17)}选择或替换图片</button><button class="button ghost" id="remove-candidate-image" type="button">移除图片</button></div>
+      <footer><button class="button ghost" id="cancel-candidate-edit" type="button">取消</button><button class="button primary" id="save-candidate-edit" type="button">保存更改</button></footer>
+    </div>
+  </dialog>
+
+  <div class="toast" id="toast" role="status" popover="manual"></div>
+  <input id="candidate-image-input" type="file" accept="image/*" multiple hidden>
+  <input id="edit-image-input" type="file" accept="image/*" hidden>
   <input id="batch-import-input" type="file" accept=".xlsx,.zip" hidden>
 `;
 
@@ -118,6 +153,9 @@ const poolDropzone = document.querySelector("#pool-dropzone");
 const settingsDialog = document.querySelector("#settings-dialog");
 const settingsBody = document.querySelector("#settings-body");
 const dialogFooter = document.querySelector("#dialog-footer");
+const multiTextDialog = document.querySelector("#multi-text-dialog");
+const dedupeDialog = document.querySelector("#dedupe-dialog");
+const editCandidateDialog = document.querySelector("#edit-candidate-dialog");
 
 function escapeHtml(value) {
   return String(value)
@@ -167,8 +205,12 @@ function showToast(message, isError = false) {
   toast.textContent = message;
   toast.classList.toggle("error", isError);
   toast.classList.add("visible");
+  if (typeof toast.showPopover === "function" && !toast.matches(":popover-open")) toast.showPopover();
   clearTimeout(showToast.timer);
-  showToast.timer = setTimeout(() => toast.classList.remove("visible"), 2600);
+  showToast.timer = setTimeout(() => {
+    toast.classList.remove("visible");
+    if (typeof toast.hidePopover === "function" && toast.matches(":popover-open")) toast.hidePopover();
+  }, 2600);
 }
 
 function candidateById(id) {
@@ -280,6 +322,10 @@ function moveCandidate(itemId, target) {
 function openSettings(tab = "tiers") {
   activeSettingsTab = tab;
   draftTiers = state.tiers.map((tier) => ({ ...tier }));
+  candidateEditorKind = "text";
+  pendingCandidateImages = [];
+  commaSessionDecision = null;
+  document.querySelector("#candidate-image-input").value = "";
   settingsDialog.showModal();
   switchSettingsTab(tab);
 }
@@ -345,9 +391,9 @@ function renderCandidateSettings() {
     <section class="candidate-create-card">
       <h3>添加候选项</h3>
       <div class="type-selector" role="group" aria-label="候选项类型">
-        <button class="type-button active" data-kind="text" type="button">${icon("text", 18)}纯文本</button>
-        <button class="type-button" data-kind="image" type="button">${icon("image", 18)}纯图片</button>
-        <button class="type-button" data-kind="composite" type="button">${icon("layers", 18)}图片 + 文本</button>
+        <button class="type-button ${candidateEditorKind === "text" ? "active" : ""}" data-kind="text" type="button">${icon("text", 18)}纯文本</button>
+        <button class="type-button ${candidateEditorKind === "image" ? "active" : ""}" data-kind="image" type="button">${icon("image", 18)}纯图片</button>
+        <button class="type-button ${candidateEditorKind === "composite" ? "active" : ""}" data-kind="composite" type="button">${icon("layers", 18)}图片 + 文本</button>
       </div>
       <div class="candidate-form" id="candidate-form"></div>
     </section>
@@ -358,43 +404,140 @@ function renderCandidateSettings() {
         <button class="layout-option ${state.preferences?.poolLayout === "wrap" ? "active" : ""}" data-pool-layout="wrap" type="button">自动换行</button>
       </div>
     </section>
-    <section class="batch-import-card">
-      <div><h3>批量导入</h3><p>Excel 需包含“选项名”列；ZIP 需包含 Excel 与 images 文件夹。</p></div>
-      <button class="button secondary" id="batch-import-button" type="button">${icon("upload", 18)}导入 Excel / ZIP</button>
-    </section>
     <section class="candidate-manager">
-      <div class="manager-heading"><h3>全部候选项</h3><span>${state.candidates.length} 项</span></div>
+      <div class="manager-heading"><h3>全部候选项</h3><div class="manager-heading-actions"><span id="candidate-total">${state.candidates.length} 项</span><button class="button dedupe-button" id="dedupe-button" type="button">一键去重</button></div></div>
       <div class="manager-grid" id="manager-grid"></div>
     </section>
   `;
-  let selectedKind = "text";
-  const renderForm = () => {
-    const form = settingsBody.querySelector("#candidate-form");
-    if (selectedKind === "text") {
-      form.innerHTML = `<input class="text-field" id="new-item-name" type="text" placeholder="输入候选项名称"><button class="button primary" id="add-item" type="button">${icon("plus", 17)}添加</button>`;
-    } else {
-      form.innerHTML = `${selectedKind === "composite" ? '<input class="text-field" id="new-item-name" type="text" placeholder="输入候选项名称">' : ""}<button class="image-picker" id="pick-single-image" type="button">${icon("image", 20)}<span>${selectedKind === "image" ? "选择图片" : "选择配图"}</span><small id="picked-file-name">PNG / JPG / GIF / WebP…</small></button><button class="button primary" id="add-item" type="button">${icon("plus", 17)}添加</button>`;
-      form.querySelector("#pick-single-image").addEventListener("click", () => document.querySelector("#single-image-input").click());
-    }
-    form.querySelector("#add-item").addEventListener("click", () => addCandidateFromForm(selectedKind));
-    form.querySelector("#new-item-name")?.addEventListener("keydown", (event) => {
-      if (event.key === "Enter") addCandidateFromForm(selectedKind);
-    });
-  };
   settingsBody.querySelectorAll(".type-button").forEach((button) => button.addEventListener("click", () => {
-    selectedKind = button.dataset.kind;
-    document.querySelector("#single-image-input").value = "";
+    candidateEditorKind = button.dataset.kind;
+    pendingCandidateImages = [];
+    document.querySelector("#candidate-image-input").value = "";
     settingsBody.querySelectorAll(".type-button").forEach((item) => item.classList.toggle("active", item === button));
-    renderForm();
+    renderCandidateForm();
   }));
-  renderForm();
+  renderCandidateForm();
   settingsBody.querySelectorAll("[data-pool-layout]").forEach((button) => button.addEventListener("click", () => {
     state.preferences = { ...state.preferences, poolLayout: button.dataset.poolLayout };
     commit();
     renderCandidateSettings();
     showToast(button.dataset.poolLayout === "wrap" ? "候选列表将自动换行" : "候选列表将保持单行滚动");
   }));
-  settingsBody.querySelector("#batch-import-button").addEventListener("click", () => document.querySelector("#batch-import-input").click());
+  settingsBody.querySelector("#dedupe-button").addEventListener("click", () => dedupeDialog.showModal());
+  renderManagerGrid();
+}
+
+function renderCandidateForm() {
+  const form = settingsBody.querySelector("#candidate-form");
+  if (!form) return;
+  if (candidateEditorKind === "text") {
+    form.innerHTML = `
+      <div class="candidate-entry-row">
+        <input class="text-field" id="new-item-name" type="text" placeholder="输入候选项名称；多个项目可用英文逗号分隔" autocomplete="off">
+        <button class="button primary" id="add-item" type="button">${icon("plus", 17)}添加</button>
+        <button class="button secondary" id="batch-import-button" type="button">${icon("upload", 17)}批量导入</button>
+      </div>`;
+    const nameInput = form.querySelector("#new-item-name");
+    form.querySelector("#add-item").addEventListener("click", () => addTextCandidates(nameInput));
+    nameInput.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        addTextCandidates(nameInput);
+      }
+    });
+  } else {
+    form.innerHTML = `
+      <button class="image-picker multi" id="pick-candidate-images" type="button">${icon("image", 22)}<span>选择一张或多张图片</span><small>${candidateEditorKind === "composite" ? "文件名将作为标签内容" : "图片将居中裁切为正方形"}</small></button>
+      <div class="selected-image-grid" id="selected-image-grid"></div>
+      <div class="candidate-form-actions"><button class="button primary" id="add-item" type="button">${icon("plus", 17)}添加${pendingCandidateImages.length ? ` ${pendingCandidateImages.length} 项` : ""}</button><button class="button secondary" id="batch-import-button" type="button">${icon("upload", 17)}批量导入</button></div>`;
+    form.querySelector("#pick-candidate-images").addEventListener("click", () => document.querySelector("#candidate-image-input").click());
+    form.querySelector("#add-item").addEventListener("click", addImageCandidates);
+    const previewGrid = form.querySelector("#selected-image-grid");
+    for (const entry of pendingCandidateImages) {
+      const preview = document.createElement("figure");
+      preview.className = "selected-image-preview";
+      preview.innerHTML = `<img src="${entry.dataUrl}" alt="${escapeHtml(entry.name)}">${candidateEditorKind === "composite" ? `<figcaption>${escapeHtml(entry.name)}</figcaption>` : ""}`;
+      previewGrid.appendChild(preview);
+    }
+  }
+  form.querySelector("#batch-import-button").addEventListener("click", () => document.querySelector("#batch-import-input").click());
+}
+
+function fileStem(fileName) {
+  return fileName.replace(/\.[^.]+$/, "").trim();
+}
+
+async function askCommaImportDecision(parts) {
+  document.querySelector("#detected-tags").innerHTML = parts.map((part) => `<span>${escapeHtml(part)}</span>`).join("");
+  const remember = document.querySelector("#remember-comma-choice");
+  remember.checked = false;
+  multiTextDialog.showModal();
+  return new Promise((resolve) => {
+    const finish = (decision) => {
+      if (decision && remember.checked) commaSessionDecision = decision;
+      multiTextDialog.close();
+      resolve(decision);
+    };
+    multiTextDialog.querySelectorAll("[data-comma-decision]").forEach((button) => {
+      button.onclick = () => finish(button.dataset.commaDecision);
+    });
+    multiTextDialog.oncancel = (event) => {
+      event.preventDefault();
+      finish(null);
+    };
+  });
+}
+
+async function addTextCandidates(input) {
+  const rawName = input.value.trim();
+  if (!rawName) {
+    showToast("请输入候选项名称", true);
+    input.focus();
+    return;
+  }
+  const commaParts = rawName.split(",").map((part) => part.trim()).filter(Boolean);
+  let names = [rawName];
+  if (commaParts.length > 1) {
+    const decision = commaSessionDecision || await askCommaImportDecision(commaParts);
+    if (!decision) {
+      input.focus();
+      return;
+    }
+    if (decision === "split") names = commaParts;
+  }
+  const items = names.map((name) => ({ id: makeId(), name, kind: "text", text: name, image: null }));
+  addCandidateItems(items);
+  input.value = "";
+  input.focus();
+  showToast(items.length === 1 ? `已添加“${items[0].name}”` : `已添加 ${items.length} 个候选项`);
+}
+
+async function addImageCandidates() {
+  if (!pendingCandidateImages.length) return showToast("请先选择图片", true);
+  const items = pendingCandidateImages.map((entry) => ({
+    id: makeId(),
+    name: entry.name,
+    kind: candidateEditorKind,
+    text: candidateEditorKind === "composite" ? entry.name : null,
+    image: entry.dataUrl,
+  }));
+  addCandidateItems(items);
+  pendingCandidateImages = [];
+  document.querySelector("#candidate-image-input").value = "";
+  renderCandidateForm();
+  showToast(`已添加 ${items.length} 个候选项`);
+}
+
+function addCandidateItems(items) {
+  state.candidates.push(...items);
+  state.pool.push(...items.map((item) => item.id));
+  commit();
+  refreshCandidateManager();
+}
+
+function refreshCandidateManager() {
+  const total = settingsBody.querySelector("#candidate-total");
+  if (total) total.textContent = `${state.candidates.length} 项`;
   renderManagerGrid();
 }
 
@@ -409,42 +552,82 @@ function renderManagerGrid() {
   for (const item of state.candidates) {
     const row = document.createElement("div");
     row.className = "manager-item";
+    row.tabIndex = 0;
+    row.setAttribute("role", "button");
+    row.setAttribute("aria-label", `编辑${item.name}`);
     row.innerHTML = `${item.image ? `<img src="${item.image}" alt="">` : `<span class="manager-text-icon">${icon("text", 20)}</span>`}<div><strong>${escapeHtml(item.name)}</strong><small>${item.kind === "text" ? "纯文本" : item.kind === "image" ? "纯图片" : "图片 + 文本"}</small></div><button class="mini-icon danger" type="button" title="删除候选项">${icon("trash", 17)}</button>`;
-    row.querySelector("button").addEventListener("click", () => deleteCandidate(item.id));
+    row.addEventListener("click", () => openCandidateEditor(item.id));
+    row.addEventListener("keydown", (event) => {
+      if (event.target === row && (event.key === "Enter" || event.key === " ")) {
+        event.preventDefault();
+        openCandidateEditor(item.id);
+      }
+    });
+    row.querySelector("button").addEventListener("click", (event) => {
+      event.stopPropagation();
+      deleteCandidate(item.id);
+    });
     grid.appendChild(row);
   }
 }
 
-async function addCandidateFromForm(kind) {
-  const nameInput = settingsBody.querySelector("#new-item-name");
-  const fileInput = document.querySelector("#single-image-input");
-  const file = fileInput.files?.[0];
-  const rawName = nameInput?.value.trim() || "";
-  if (kind === "text" && !rawName) return showToast("请输入候选项名称", true);
-  if ((kind === "image" || kind === "composite") && !file) return showToast("请先选择图片", true);
-  if (kind === "composite" && !rawName) return showToast("请输入图片对应的名称", true);
-
-  const name = rawName || file.name.replace(/\.[^.]+$/, "");
-  const item = {
-    id: makeId(),
-    name,
-    kind,
-    text: kind === "image" ? null : name,
-    image: file ? await fileToDataUrl(file) : null,
-  };
-  state.candidates.push(item);
-  state.pool.push(item.id);
-  fileInput.value = "";
-  commit({ renderSettings: true });
-  showToast(`已添加“${name}”`);
+function deleteCandidate(id) {
+  removeCandidateIds(new Set([id]));
+  refreshCandidateManager();
 }
 
-function deleteCandidate(id) {
-  state.candidates = state.candidates.filter((item) => item.id !== id);
-  state.pool = state.pool.filter((itemId) => itemId !== id);
-  for (const tierId of Object.keys(state.tierItems)) state.tierItems[tierId] = state.tierItems[tierId].filter((itemId) => itemId !== id);
-  commit({ renderSettings: false });
-  renderCandidateSettings();
+function removeCandidateIds(ids) {
+  state.candidates = state.candidates.filter((item) => !ids.has(item.id));
+  state.pool = state.pool.filter((id) => !ids.has(id));
+  for (const tierId of Object.keys(state.tierItems)) state.tierItems[tierId] = state.tierItems[tierId].filter((id) => !ids.has(id));
+  commit();
+}
+
+function performDedupe() {
+  const seen = new Set();
+  const duplicateIds = new Set();
+  for (const item of state.candidates) {
+    const key = String(item.text || item.name || "").trim().toLocaleLowerCase();
+    if (!key) continue;
+    if (seen.has(key)) duplicateIds.add(item.id);
+    else seen.add(key);
+  }
+  if (duplicateIds.size) removeCandidateIds(duplicateIds);
+  refreshCandidateManager();
+  showToast(duplicateIds.size ? `已移除 ${duplicateIds.size} 个重复候选项` : "没有发现重复候选项");
+}
+
+function openCandidateEditor(id) {
+  const item = candidateById(id);
+  if (!item) return;
+  editingCandidateId = id;
+  editingCandidateImage = item.image || null;
+  document.querySelector("#edit-candidate-label").value = item.text || "";
+  renderEditImage();
+  editCandidateDialog.showModal();
+}
+
+function renderEditImage() {
+  const area = document.querySelector("#edit-image-area");
+  area.innerHTML = editingCandidateImage
+    ? `<img src="${editingCandidateImage}" alt="候选项图片">`
+    : `<div class="no-edit-image">${icon("image", 26)}<span>暂无图片</span></div>`;
+  document.querySelector("#remove-candidate-image").disabled = !editingCandidateImage;
+}
+
+function saveCandidateEdit() {
+  const item = candidateById(editingCandidateId);
+  if (!item) return editCandidateDialog.close();
+  const label = document.querySelector("#edit-candidate-label").value.trim();
+  if (!label && !editingCandidateImage) return showToast("候选项至少需要文字或图片", true);
+  if (label) item.name = label;
+  item.text = label || null;
+  item.image = editingCandidateImage;
+  item.kind = editingCandidateImage ? (label ? "composite" : "image") : "text";
+  commit();
+  refreshCandidateManager();
+  editCandidateDialog.close();
+  showToast("候选项已更新");
 }
 
 function applyTierSettings() {
@@ -488,10 +671,21 @@ document.querySelector("#save-button").addEventListener("click", async () => {
   }
 });
 
-document.querySelector("#single-image-input").addEventListener("change", (event) => {
-  const fileName = event.target.files?.[0]?.name;
-  const label = settingsBody.querySelector("#picked-file-name");
-  if (label && fileName) label.textContent = fileName;
+document.querySelector("#candidate-image-input").addEventListener("change", async (event) => {
+  const files = [...(event.target.files || [])];
+  pendingCandidateImages = await Promise.all(files.map(async (file) => ({
+    name: fileStem(file.name),
+    dataUrl: await fileToDataUrl(file),
+  })));
+  renderCandidateForm();
+});
+
+document.querySelector("#edit-image-input").addEventListener("change", async (event) => {
+  const file = event.target.files?.[0];
+  event.target.value = "";
+  if (!file) return;
+  editingCandidateImage = await fileToDataUrl(file);
+  renderEditImage();
 });
 
 document.querySelector("#batch-import-input").addEventListener("change", async (event) => {
@@ -501,18 +695,32 @@ document.querySelector("#batch-import-input").addEventListener("change", async (
   try {
     const imported = file.name.toLowerCase().endsWith(".zip") ? await importZip(file) : await importExcel(file);
     const items = imported.map((item) => ({ ...item, id: makeId() }));
-    state.candidates.push(...items);
-    state.pool.push(...items.map((item) => item.id));
-    commit();
-    renderCandidateSettings();
+    addCandidateItems(items);
     showToast(`成功导入 ${items.length} 个候选项`);
   } catch (error) {
     showToast(error.message || "导入失败", true);
   }
 });
 
+document.querySelector("#cancel-dedupe").addEventListener("click", () => dedupeDialog.close());
+document.querySelector("#confirm-dedupe").addEventListener("click", () => {
+  dedupeDialog.close();
+  performDedupe();
+});
+document.querySelector("#replace-candidate-image").addEventListener("click", () => document.querySelector("#edit-image-input").click());
+document.querySelector("#remove-candidate-image").addEventListener("click", () => {
+  editingCandidateImage = null;
+  renderEditImage();
+});
+document.querySelector("#cancel-candidate-edit").addEventListener("click", () => editCandidateDialog.close());
+document.querySelector("#save-candidate-edit").addEventListener("click", saveCandidateEdit);
+
 settingsDialog.addEventListener("click", (event) => {
   if (event.target === settingsDialog) settingsDialog.close();
+});
+settingsDialog.addEventListener("close", () => {
+  commaSessionDecision = null;
+  pendingCandidateImages = [];
 });
 
 async function initialize() {
