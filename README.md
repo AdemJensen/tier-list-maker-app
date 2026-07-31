@@ -73,9 +73,9 @@ npm run dev
 ## 构建桌面应用
 
 ```bash
-npm run build
-npm run dist:mac
-npm run dist:win
+npm run dist:mac # 同时生成 Apple Silicon（arm64）和 Intel（x64）ZIP
+npm run dist:win # 生成 Intel/AMD 64 位（x64）Windows 便携版
+npm run dist     # 一次生成上述全部平台包
 ```
 
 构建产物会输出到 `release/` 目录。

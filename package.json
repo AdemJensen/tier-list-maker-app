@@ -1,6 +1,6 @@
 {
   "name": "tier-list-maker",
-  "version": "0.5.5",
+  "version": "0.5.6",
   "private": true,
   "type": "module",
   "description": "可自由拖拽候选项、自定义分档并导出图片的跨平台从夯到拉排名生成器",
@@ -10,9 +10,9 @@
     "build": "vite build",
     "preview": "vite preview",
     "desktop": "npm run build && electron .",
-    "dist:mac": "npm run build && electron-builder --mac",
-    "dist:win": "npm run build && electron-builder --win",
-    "dist": "npm run build && electron-builder --mac --win"
+    "dist:mac": "npm run build && electron-builder --mac zip --arm64 --x64",
+    "dist:win": "npm run build && electron-builder --win portable --x64",
+    "dist": "npm run build && electron-builder --mac zip --arm64 --x64 && electron-builder --win portable --x64"
   },
   "dependencies": {
     "fast-xml-parser": "^5.10.1",
@@ -41,14 +41,12 @@
       "category": "public.app-category.entertainment",
       "icon": "resources/icons/app-icon.png",
       "target": [
-        "dmg",
         "zip"
       ]
     },
     "win": {
       "icon": "resources/icons/app-icon.ico",
       "target": [
-        "nsis",
         "portable"
       ]
     },
