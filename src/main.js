@@ -213,7 +213,9 @@ function candidateCard(item, location) {
 
 function render() {
   const poolLayout = state.preferences?.poolLayout === "wrap" ? "wrap" : "scroll";
-  document.querySelector(".app-shell").classList.toggle("pool-wrap", poolLayout === "wrap");
+  const appShell = document.querySelector(".app-shell");
+  appShell.classList.toggle("pool-wrap", poolLayout === "wrap");
+  appShell.style.setProperty("--tier-count", state.tiers.length);
   poolDropzone.classList.toggle("layout-wrap", poolLayout === "wrap");
   tierBoard.replaceChildren();
   tierBoard.style.setProperty("--tier-count", state.tiers.length);
