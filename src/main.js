@@ -102,7 +102,10 @@ app.innerHTML = `
     <section class="candidate-shelf" id="pool-dropzone" aria-label="候选列表">
       <div class="shelf-heading">
         <div><span class="shelf-icon">${icon("layers", 18)}</span><strong>候选列表</strong><span class="count-pill" id="pool-count">0</span></div>
-        <span>拖动候选项到上方分档</span>
+        <div class="shelf-heading-actions">
+          <span class="shelf-hint">拖动候选项到上方分档</span>
+          <button class="shelf-edit-button" id="edit-candidates-button" type="button" title="编辑候选项">${icon("candidates", 16)}<span>编辑候选项</span></button>
+        </div>
       </div>
       <div class="candidate-list" id="candidate-pool"></div>
     </section>
@@ -409,13 +412,15 @@ function moveCandidate(itemId, target) {
   commit();
 }
 
-function openSettings(tab = "basic") {
+function openSettings(tab = "basic", candidateOnly = false) {
   activeSettingsTab = tab;
   draftTiers = state.tiers.map((tier) => ({ ...tier }));
   candidateEditorKind = "text";
   pendingCandidateImages = [];
   commaSessionDecision = null;
   document.querySelector("#candidate-image-input").value = "";
+  settingsDialog.classList.toggle("candidate-editor-mode", candidateOnly);
+  document.querySelector(".settings-sidebar").hidden = candidateOnly;
   settingsDialog.showModal();
   switchSettingsTab(tab);
 }
@@ -836,6 +841,7 @@ function applyTierSettings() {
 }
 
 document.querySelector("#settings-button").addEventListener("click", () => openSettings());
+document.querySelector("#edit-candidates-button").addEventListener("click", () => openSettings("candidates", true));
 document.querySelector("#close-settings").addEventListener("click", () => settingsDialog.close());
 document.querySelector("#cancel-settings").addEventListener("click", () => settingsDialog.close());
 document.querySelector("#apply-settings").addEventListener("click", applyTierSettings);

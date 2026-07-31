@@ -120,6 +120,10 @@ button { color: inherit; }
 .candidate-shelf.drop-active { border-color: #7aa0ff; background: #f6f8ff; }
 .shelf-heading { display: flex; align-items: center; justify-content: space-between; color: #758196; font-size: 12px; }
 .shelf-heading > div { gap: 8px; color: #334155; }
+.shelf-heading-actions { display: flex; align-items: center; }
+.shelf-hint { color: #758196; }
+.shelf-edit-button { height: 30px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 0 10px; border: 1px solid #cbd7f5; border-radius: 8px; color: var(--blue); background: #f3f6ff; cursor: pointer; font-size: 12px; font-weight: 650; }
+.shelf-edit-button:hover { border-color: #9eb2e9; background: #e9efff; }
 .shelf-icon { display:flex; color: var(--blue); }
 .count-pill { min-width: 23px; padding: 2px 7px; border-radius: 99px; color: #51627a; background: #edf0f5; text-align: center; font-size: 11px; }
 .candidate-list { min-width: 0; display: flex; align-items: center; gap: 10px; overflow-x: auto; padding: 4px 2px 2px; }
@@ -169,6 +173,7 @@ button { color: inherit; }
 .settings-dialog { width: min(900px, calc(100vw - 42px)); height: min(690px, calc(100vh - 42px)); padding: 0; border: 0; border-radius: 16px; background: white; box-shadow: 0 32px 90px rgba(15,23,42,.3); overflow: hidden; }
 .settings-dialog::backdrop { background: rgba(32, 41, 57, .52); backdrop-filter: blur(2px); }
 .dialog-shell { height: 100%; display: grid; grid-template-columns: 220px minmax(0, 1fr); }
+.settings-dialog.candidate-editor-mode .dialog-shell { grid-template-columns: minmax(0, 1fr); }
 .settings-sidebar { display: flex; flex-direction: column; padding: 24px 15px; background: #f5f7fb; border-right: 1px solid #e5e9f0; }
 .settings-title { display: flex; align-items: center; gap: 8px; padding: 0 10px 22px; font-size: 18px; }
 .settings-title span { display: flex; color: var(--blue); }
@@ -304,7 +309,7 @@ button { color: inherit; }
 @media (max-width: 720px) {
   .app-shell { --tier-min-height: 104px; --tier-compressed-min-height: 58px; grid-template-rows: 62px minmax(max-content, 1fr) 142px; padding-inline: 8px; }
   .app-shell.pool-wrap { grid-template-rows: 62px minmax(max-content, 1fr) auto; }
-  .brand small, .icon-button span, .shelf-heading > span { display: none; }
+  .brand small, .icon-button span, .shelf-hint { display: none; }
   .icon-button { width: 40px; justify-content: center; padding: 0; }
   .tier-row { grid-template-columns: 76px minmax(0, 1fr); }
   .dialog-shell { grid-template-columns: 76px minmax(0, 1fr); }
