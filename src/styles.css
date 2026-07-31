@@ -112,8 +112,19 @@ button { color: inherit; }
 .shelf-icon { display:flex; color: var(--blue); }
 .count-pill { min-width: 23px; padding: 2px 7px; border-radius: 99px; color: #51627a; background: #edf0f5; text-align: center; font-size: 11px; }
 .candidate-list { min-width: 0; display: flex; align-items: center; gap: 10px; overflow-x: auto; padding: 4px 2px 2px; }
-.candidate-shelf.layout-wrap { min-height: 132px; }
-.candidate-shelf.layout-wrap .candidate-list { flex-wrap: wrap; align-content: flex-start; align-items: flex-start; overflow: visible; padding-block: 8px 4px; }
+.candidate-shelf.layout-wrap {
+  min-height: 132px;
+  grid-template-rows: 37px auto;
+  align-self: start;
+}
+.candidate-shelf.layout-wrap .candidate-list {
+  min-height: 0;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  align-items: flex-start;
+  overflow: visible;
+  padding-block: 8px 4px;
+}
 .empty-pool { width: 100%; padding: 18px; border: 1px dashed #cbd5e1; border-radius: 9px; color: #94a3b8; text-align: center; }
 
 .candidate-card {
