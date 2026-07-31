@@ -8,7 +8,7 @@ function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1440,
     height: 900,
-    minWidth: 840,
+    minWidth: 560,
     minHeight: 600,
     backgroundColor: "#f3f5f9",
     title: "直播分档榜",
@@ -33,7 +33,7 @@ ipcMain.handle("save-board-image", async (_event, rect) => {
   if (!mainWindow || !rect) return { ok: false, reason: "窗口不可用" };
 
   const result = await dialog.showSaveDialog(mainWindow, {
-    title: "保存榜单图片",
+    title: "导出榜单图片",
     defaultPath: `直播分档榜-${new Date().toISOString().slice(0, 10)}.png`,
     filters: [{ name: "PNG 图片", extensions: ["png"] }],
   });

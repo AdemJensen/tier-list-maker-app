@@ -20,6 +20,19 @@ const tierTemplates = {
   ],
 };
 
+const defaultPreferences = Object.freeze({
+  poolLayout: "scroll",
+  logoVisible: true,
+  logoImage: null,
+  titleVisible: true,
+  titleText: "直播分档榜",
+  subtitleVisible: true,
+  subtitleText: "LIVE TIER BOARD",
+  tierFontSize: 18,
+  candidateFontSize: 14,
+  imageSize: 88,
+});
+
 function makeId(prefix = "item") {
   return `${prefix}-${crypto.randomUUID()}`;
 }
@@ -43,13 +56,13 @@ function createDefaultState() {
     candidates: defaultCandidates,
     pool: defaultCandidates.map((item) => item.id),
     tierItems: Object.fromEntries(tiers.map((tier) => [tier.id, []])),
-    preferences: { poolLayout: "scroll" },
+    preferences: { ...defaultPreferences },
   };
 }
 
 let state = createDefaultState();
 let draftTiers = [];
-let activeSettingsTab = "tiers";
+let activeSettingsTab = "basic";
 let draggedItemId = null;
 let persistTimer = null;
 let candidateEditorKind = "text";
@@ -63,14 +76,14 @@ const app = document.querySelector("#app");
 app.innerHTML = `
   <main class="app-shell">
     <header class="toolbar">
-      <div class="brand">
-        <span class="brand-mark">${icon("layers", 22)}</span>
-        <div><strong>直播分档榜</strong><small>LIVE TIER BOARD</small></div>
+      <div class="brand" id="brand">
+        <span class="brand-mark" id="brand-logo">${icon("layers", 22)}</span>
+        <div class="brand-copy" id="brand-copy"><strong id="brand-title">直播分档榜</strong><small id="brand-subtitle">LIVE TIER BOARD</small></div>
       </div>
       <div class="toolbar-actions" aria-label="主要操作">
         <button class="icon-button" id="settings-button" type="button" title="设置">${icon("settings")}<span>设置</span></button>
-        <button class="icon-button" id="reset-button" type="button" title="重置排名">${icon("reset")}<span>重置</span></button>
-        <button class="icon-button primary" id="save-button" type="button" title="保存榜单图片">${icon("save")}<span>保存</span></button>
+        <button class="icon-button danger" id="reset-button" type="button" title="重置排名">${icon("reset")}<span>重置</span></button>
+        <button class="icon-button primary" id="save-button" type="button" title="导出榜单图片">${icon("save")}<span>导出图片</span></button>
       </div>
     </header>
 
@@ -92,14 +105,15 @@ app.innerHTML = `
       <aside class="settings-sidebar">
         <div class="settings-title"><span>${icon("settings", 19)}</span><strong>设置</strong></div>
         <nav>
-          <button class="settings-tab active" data-tab="tiers" type="button">${icon("table", 18)}<span>分档/列管理</span></button>
+          <button class="settings-tab active" data-tab="basic" type="button">${icon("settings", 18)}<span>基本设置</span></button>
+          <button class="settings-tab" data-tab="tiers" type="button">${icon("table", 18)}<span>分档/列管理</span></button>
           <button class="settings-tab" data-tab="candidates" type="button">${icon("candidates", 18)}<span>候选项管理</span></button>
         </nav>
         <p>所有内容自动保存在本机</p>
       </aside>
       <section class="settings-content">
         <header class="dialog-header">
-          <div><h2 id="settings-heading">分档/列管理</h2><p id="settings-subheading">自定义等级名称、颜色和顺序</p></div>
+          <div><h2 id="settings-heading">基本设置</h2><p id="settings-subheading">自定义标题、Logo 与显示尺寸</p></div>
           <button class="plain-icon-button" id="close-settings" type="button" aria-label="关闭设置">${icon("close")}</button>
         </header>
         <div class="settings-body" id="settings-body"></div>
@@ -129,6 +143,14 @@ app.innerHTML = `
     </div>
   </dialog>
 
+  <dialog class="confirm-dialog" id="reset-dialog">
+    <div class="confirm-dialog-shell">
+      <h3>重置榜单</h3>
+      <p>确定要清空当前排名吗？所有已排名项目都会移回下方候选列表，候选项和设置不会被删除。</p>
+      <footer><button class="button ghost" id="cancel-reset" type="button">取消</button><button class="button danger" id="confirm-reset" type="button">确认重置</button></footer>
+    </div>
+  </dialog>
+
   <dialog class="confirm-dialog edit-candidate-dialog" id="edit-candidate-dialog">
     <div class="confirm-dialog-shell">
       <h3>编辑候选项</h3>
@@ -144,6 +166,7 @@ app.innerHTML = `
   <div class="toast" id="toast" role="status" popover="manual"></div>
   <input id="candidate-image-input" type="file" accept="image/*" multiple hidden>
   <input id="edit-image-input" type="file" accept="image/*" hidden>
+  <input id="logo-image-input" type="file" accept="image/*" hidden>
   <input id="batch-import-input" type="file" accept=".xlsx,.zip" hidden>
 `;
 
@@ -155,6 +178,7 @@ const settingsBody = document.querySelector("#settings-body");
 const dialogFooter = document.querySelector("#dialog-footer");
 const multiTextDialog = document.querySelector("#multi-text-dialog");
 const dedupeDialog = document.querySelector("#dedupe-dialog");
+const resetDialog = document.querySelector("#reset-dialog");
 const editCandidateDialog = document.querySelector("#edit-candidate-dialog");
 
 function escapeHtml(value) {
@@ -164,6 +188,11 @@ function escapeHtml(value) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
+}
+
+function clampNumber(value, min, max, fallback) {
+  const number = Number(value);
+  return Number.isFinite(number) ? Math.min(max, Math.max(min, number)) : fallback;
 }
 
 function normalizeState(input) {
@@ -185,8 +214,21 @@ function normalizeState(input) {
     return true;
   });
   for (const id of candidateIds) if (!used.has(id)) pool.push(id);
-  const poolLayout = input.preferences?.poolLayout === "wrap" ? "wrap" : "scroll";
-  return { tiers: input.tiers, candidates: input.candidates, pool, tierItems, preferences: { poolLayout } };
+  const savedPreferences = input.preferences || {};
+  const preferences = {
+    ...defaultPreferences,
+    poolLayout: savedPreferences.poolLayout === "wrap" ? "wrap" : "scroll",
+    logoVisible: savedPreferences.logoVisible !== false,
+    logoImage: typeof savedPreferences.logoImage === "string" && savedPreferences.logoImage.startsWith("data:image/") ? savedPreferences.logoImage : null,
+    titleVisible: savedPreferences.titleVisible !== false,
+    titleText: typeof savedPreferences.titleText === "string" ? savedPreferences.titleText.slice(0, 60) : defaultPreferences.titleText,
+    subtitleVisible: savedPreferences.subtitleVisible !== false,
+    subtitleText: typeof savedPreferences.subtitleText === "string" ? savedPreferences.subtitleText.slice(0, 80) : defaultPreferences.subtitleText,
+    tierFontSize: clampNumber(savedPreferences.tierFontSize, 12, 36, defaultPreferences.tierFontSize),
+    candidateFontSize: clampNumber(savedPreferences.candidateFontSize, 10, 24, defaultPreferences.candidateFontSize),
+    imageSize: clampNumber(savedPreferences.imageSize, 48, 160, defaultPreferences.imageSize),
+  };
+  return { tiers: input.tiers, candidates: input.candidates, pool, tierItems, preferences };
 }
 
 function schedulePersist() {
@@ -253,11 +295,46 @@ function candidateCard(item, location) {
   return card;
 }
 
+function applyVisualPreferences() {
+  const preferences = state.preferences || defaultPreferences;
+  const appShell = document.querySelector(".app-shell");
+  const brand = document.querySelector("#brand");
+  const logo = document.querySelector("#brand-logo");
+  const copy = document.querySelector("#brand-copy");
+  const title = document.querySelector("#brand-title");
+  const subtitle = document.querySelector("#brand-subtitle");
+
+  appShell.style.setProperty("--tier-font-size", `${preferences.tierFontSize}px`);
+  appShell.style.setProperty("--candidate-font-size", `${preferences.candidateFontSize}px`);
+  appShell.style.setProperty("--candidate-composite-font-size", `${Math.max(9, Math.round(preferences.candidateFontSize * 0.78))}px`);
+  appShell.style.setProperty("--candidate-image-size", `${preferences.imageSize}px`);
+  appShell.style.setProperty("--candidate-image-plain-size", `${Math.round(preferences.imageSize * 78 / 88)}px`);
+
+  logo.hidden = !preferences.logoVisible;
+  if (preferences.logoImage) {
+    const image = document.createElement("img");
+    image.src = preferences.logoImage;
+    image.alt = "Logo";
+    logo.replaceChildren(image);
+  } else if (!logo.querySelector("svg")) {
+    logo.innerHTML = icon("layers", 22);
+  }
+
+  title.textContent = preferences.titleText;
+  title.hidden = !preferences.titleVisible;
+  subtitle.textContent = preferences.subtitleText;
+  subtitle.hidden = !preferences.subtitleVisible;
+  copy.hidden = !preferences.titleVisible && !preferences.subtitleVisible;
+  brand.hidden = !preferences.logoVisible && copy.hidden;
+  document.title = preferences.titleText.trim() || defaultPreferences.titleText;
+}
+
 function render() {
   const poolLayout = state.preferences?.poolLayout === "wrap" ? "wrap" : "scroll";
   const appShell = document.querySelector(".app-shell");
   appShell.classList.toggle("pool-wrap", poolLayout === "wrap");
   appShell.style.setProperty("--tier-count", state.tiers.length);
+  applyVisualPreferences();
   poolDropzone.classList.toggle("layout-wrap", poolLayout === "wrap");
   tierBoard.replaceChildren();
   tierBoard.style.setProperty("--tier-count", state.tiers.length);
@@ -319,7 +396,7 @@ function moveCandidate(itemId, target) {
   commit();
 }
 
-function openSettings(tab = "tiers") {
+function openSettings(tab = "basic") {
   activeSettingsTab = tab;
   draftTiers = state.tiers.map((tier) => ({ ...tier }));
   candidateEditorKind = "text";
@@ -333,18 +410,107 @@ function openSettings(tab = "tiers") {
 function switchSettingsTab(tab) {
   activeSettingsTab = tab;
   document.querySelectorAll(".settings-tab").forEach((button) => button.classList.toggle("active", button.dataset.tab === tab));
-  const isTiers = tab === "tiers";
-  document.querySelector("#settings-heading").textContent = isTiers ? "分档/列管理" : "候选项管理";
-  document.querySelector("#settings-subheading").textContent = isTiers
-    ? "自定义等级名称、颜色和顺序"
-    : "添加文字、图片或图文候选项，也可批量导入";
-  dialogFooter.hidden = !isTiers;
+  const metadata = {
+    basic: ["基本设置", "自定义标题、Logo 与显示尺寸"],
+    tiers: ["分档/列管理", "自定义等级名称、颜色和顺序"],
+    candidates: ["候选项管理", "添加文字、图片或图文候选项，也可批量导入"],
+  }[tab] || ["设置", "调整应用选项"];
+  document.querySelector("#settings-heading").textContent = metadata[0];
+  document.querySelector("#settings-subheading").textContent = metadata[1];
+  dialogFooter.hidden = tab !== "tiers";
   renderSettingsPanel();
 }
 
 function renderSettingsPanel() {
-  if (activeSettingsTab === "tiers") renderTierSettings();
+  if (activeSettingsTab === "basic") renderBasicSettings();
+  else if (activeSettingsTab === "tiers") renderTierSettings();
   else renderCandidateSettings();
+}
+
+function updateBasicPreference(key, value) {
+  state.preferences = { ...state.preferences, [key]: value };
+  applyVisualPreferences();
+  schedulePersist();
+}
+
+function resetBasicSetting(group) {
+  const resetKeys = {
+    logo: ["logoVisible", "logoImage"],
+    title: ["titleVisible", "titleText"],
+    subtitle: ["subtitleVisible", "subtitleText"],
+    tierFontSize: ["tierFontSize"],
+    candidateFontSize: ["candidateFontSize"],
+    imageSize: ["imageSize"],
+  }[group] || [];
+  state.preferences = { ...state.preferences };
+  for (const key of resetKeys) state.preferences[key] = defaultPreferences[key];
+  applyVisualPreferences();
+  schedulePersist();
+  renderBasicSettings();
+  showToast("已恢复默认设置");
+}
+
+function renderBasicSettings() {
+  const preferences = state.preferences;
+  const logoPreview = preferences.logoImage
+    ? `<img src="${preferences.logoImage}" alt="当前 Logo">`
+    : icon("layers", 24);
+  settingsBody.innerHTML = `
+    <div class="basic-settings-grid">
+      <section class="basic-setting-card brand-setting-card">
+        <div class="basic-setting-heading"><div><h3>左上角 Logo</h3><p>支持上传常见图片格式，默认使用内置图标。</p></div><label class="visibility-toggle"><input id="logo-visible" type="checkbox" ${preferences.logoVisible ? "checked" : ""}>显示</label></div>
+        <div class="logo-setting-row"><span class="basic-logo-preview">${logoPreview}</span><div><button class="button secondary" id="choose-logo" type="button">${icon("image", 17)}选择图片</button><button class="button ghost reset-setting" data-reset-setting="logo" type="button">恢复默认</button></div></div>
+      </section>
+
+      <section class="basic-setting-card">
+        <div class="basic-setting-heading"><div><h3>大标题与应用标题</h3><p>这里的内容也会同步到应用窗口标题。</p></div><label class="visibility-toggle"><input id="title-visible" type="checkbox" ${preferences.titleVisible ? "checked" : ""}>显示</label></div>
+        <div class="basic-text-row"><input class="text-field" id="title-text" type="text" maxlength="60" value="${escapeHtml(preferences.titleText)}" aria-label="大标题内容"><button class="button ghost reset-setting" data-reset-setting="title" type="button">恢复默认</button></div>
+      </section>
+
+      <section class="basic-setting-card">
+        <div class="basic-setting-heading"><div><h3>小标题</h3><p>显示在大标题下方，可用于英文名或直播主题。</p></div><label class="visibility-toggle"><input id="subtitle-visible" type="checkbox" ${preferences.subtitleVisible ? "checked" : ""}>显示</label></div>
+        <div class="basic-text-row"><input class="text-field" id="subtitle-text" type="text" maxlength="80" value="${escapeHtml(preferences.subtitleText)}" aria-label="小标题内容"><button class="button ghost reset-setting" data-reset-setting="subtitle" type="button">恢复默认</button></div>
+      </section>
+
+      <section class="basic-setting-card size-setting-card">
+        <h3>显示尺寸</h3>
+        <p class="section-description">拖动滑块即可实时预览，每个项目均可单独恢复默认值。</p>
+        <div class="range-setting">
+          <div><label for="tier-font-size">表格字体大小</label><output id="tier-font-size-output">${preferences.tierFontSize}px</output></div>
+          <div class="range-control"><input id="tier-font-size" type="range" min="12" max="36" step="1" value="${preferences.tierFontSize}"><button class="button ghost reset-setting" data-reset-setting="tierFontSize" type="button">恢复默认</button></div>
+        </div>
+        <div class="range-setting">
+          <div><label for="candidate-font-size">标签字体大小</label><output id="candidate-font-size-output">${preferences.candidateFontSize}px</output></div>
+          <div class="range-control"><input id="candidate-font-size" type="range" min="10" max="24" step="1" value="${preferences.candidateFontSize}"><button class="button ghost reset-setting" data-reset-setting="candidateFontSize" type="button">恢复默认</button></div>
+        </div>
+        <div class="range-setting">
+          <div><label for="image-size">图片显示尺寸</label><output id="image-size-output">${preferences.imageSize}px</output></div>
+          <div class="range-control"><input id="image-size" type="range" min="48" max="160" step="2" value="${preferences.imageSize}"><button class="button ghost reset-setting" data-reset-setting="imageSize" type="button">恢复默认</button></div>
+        </div>
+      </section>
+    </div>
+  `;
+
+  settingsBody.querySelector("#logo-visible").addEventListener("change", (event) => updateBasicPreference("logoVisible", event.target.checked));
+  settingsBody.querySelector("#choose-logo").addEventListener("click", () => document.querySelector("#logo-image-input").click());
+  settingsBody.querySelector("#title-visible").addEventListener("change", (event) => updateBasicPreference("titleVisible", event.target.checked));
+  settingsBody.querySelector("#title-text").addEventListener("input", (event) => updateBasicPreference("titleText", event.target.value));
+  settingsBody.querySelector("#subtitle-visible").addEventListener("change", (event) => updateBasicPreference("subtitleVisible", event.target.checked));
+  settingsBody.querySelector("#subtitle-text").addEventListener("input", (event) => updateBasicPreference("subtitleText", event.target.value));
+
+  const ranges = [
+    ["tier-font-size", "tierFontSize"],
+    ["candidate-font-size", "candidateFontSize"],
+    ["image-size", "imageSize"],
+  ];
+  for (const [id, key] of ranges) {
+    settingsBody.querySelector(`#${id}`).addEventListener("input", (event) => {
+      const value = Number(event.target.value);
+      settingsBody.querySelector(`#${id}-output`).textContent = `${value}px`;
+      updateBasicPreference(key, value);
+    });
+  }
+  settingsBody.querySelectorAll("[data-reset-setting]").forEach((button) => button.addEventListener("click", () => resetBasicSetting(button.dataset.resetSetting)));
 }
 
 function renderTierSettings() {
@@ -651,23 +817,30 @@ document.querySelector("#cancel-settings").addEventListener("click", () => setti
 document.querySelector("#apply-settings").addEventListener("click", applyTierSettings);
 document.querySelectorAll(".settings-tab").forEach((button) => button.addEventListener("click", () => switchSettingsTab(button.dataset.tab)));
 
-document.querySelector("#reset-button").addEventListener("click", () => {
+function resetRanking() {
   const ranked = state.tiers.flatMap((tier) => state.tierItems[tier.id] || []);
   state.pool = [...state.pool, ...ranked.filter((id) => !state.pool.includes(id))];
   state.tierItems = Object.fromEntries(state.tiers.map((tier) => [tier.id, []]));
   commit();
   showToast("榜单已重置，候选项已移回下方");
+}
+
+document.querySelector("#reset-button").addEventListener("click", () => resetDialog.showModal());
+document.querySelector("#cancel-reset").addEventListener("click", () => resetDialog.close());
+document.querySelector("#confirm-reset").addEventListener("click", () => {
+  resetDialog.close();
+  resetRanking();
 });
 
 document.querySelector("#save-button").addEventListener("click", async () => {
   const board = document.querySelector("#export-area");
   const rect = board.getBoundingClientRect();
-  if (!window.desktop?.saveBoardImage) return showToast("请在桌面应用中使用保存功能", true);
+  if (!window.desktop?.saveBoardImage) return showToast("请在桌面应用中使用导出功能", true);
   try {
     const result = await window.desktop.saveBoardImage({ x: rect.x, y: rect.y, width: rect.width, height: rect.height });
-    if (result.ok) showToast("榜单图片已保存");
+    if (result.ok) showToast("榜单图片已导出");
   } catch {
-    showToast("保存图片失败", true);
+    showToast("导出图片失败", true);
   }
 });
 
@@ -686,6 +859,17 @@ document.querySelector("#edit-image-input").addEventListener("change", async (ev
   if (!file) return;
   editingCandidateImage = await fileToDataUrl(file);
   renderEditImage();
+});
+
+document.querySelector("#logo-image-input").addEventListener("change", async (event) => {
+  const file = event.target.files?.[0];
+  event.target.value = "";
+  if (!file) return;
+  state.preferences = { ...state.preferences, logoImage: await fileToDataUrl(file), logoVisible: true };
+  applyVisualPreferences();
+  schedulePersist();
+  if (activeSettingsTab === "basic") renderBasicSettings();
+  showToast("Logo 已更新");
 });
 
 document.querySelector("#batch-import-input").addEventListener("change", async (event) => {
