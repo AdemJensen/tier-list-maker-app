@@ -208,7 +208,7 @@ button { color: inherit; }
 .mini-icon:disabled { opacity: .35; cursor: default; }
 .add-row { margin-top: 14px; color: var(--blue); border-color: transparent; background: #eef3ff; }
 
-.basic-live-preview { position: sticky; z-index: 5; top: 0; margin: -5px 0 14px; padding: 12px; border: 1px solid #cdd9f4; border-radius: 12px; background: rgba(245,248,255,.96); box-shadow: 0 8px 22px rgba(65,105,225,.11); backdrop-filter: blur(10px); }
+.basic-live-preview { margin-top: 4px; padding-top: 15px; border-top: 1px solid #dfe5ee; }
 .preview-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 9px; }
 .preview-heading h3 { margin: 0; font-size: 13px; }
 .preview-heading p { margin: 3px 0 0; color: #76849a; font-size: 10px; }

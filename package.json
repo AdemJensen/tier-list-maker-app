@@ -1,6 +1,6 @@
 {
   "name": "live-tier-board",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "private": true,
   "type": "module",
   "description": "用于直播展示的跨平台拖拽分档榜工具",

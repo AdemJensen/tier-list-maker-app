@@ -469,17 +469,6 @@ function renderBasicSettings() {
     ? `<img src="${preferences.logoImage}" alt="当前 Logo">`
     : icon("layers", 24);
   settingsBody.innerHTML = `
-    <section class="basic-live-preview" aria-label="当前效果预览">
-      <div class="preview-heading"><div><h3>当前效果预览</h3><p>滑块调整会立即反映在这里。</p></div><span>实时预览</span></div>
-      <div class="preview-tier-board">
-        <div class="preview-tier-label">预览分档</div>
-        <div class="preview-tier-content">
-          <article class="candidate-card kind-text"><span>纯文本选项</span></article>
-          <article class="candidate-card kind-image"><img src="${previewImageDataUrl}" alt="纯图片选项"></article>
-          <article class="candidate-card kind-composite"><img src="${previewImageDataUrl}" alt="图文选项"><span>图片 + 文本</span></article>
-        </div>
-      </div>
-    </section>
     <div class="basic-settings-grid">
       <section class="basic-setting-card brand-setting-card">
         <div class="basic-setting-heading"><div><h3>左上角 Logo</h3><p>支持上传常见图片格式，默认使用内置图标。</p></div><label class="visibility-toggle"><input id="logo-visible" type="checkbox" ${preferences.logoVisible ? "checked" : ""}>显示</label></div>
@@ -511,6 +500,17 @@ function renderBasicSettings() {
           <div><label for="image-size">图片显示尺寸</label><output id="image-size-output">${preferences.imageSize}px</output></div>
           <div class="range-control"><input id="image-size" type="range" min="48" max="160" step="2" value="${preferences.imageSize}"><button class="button ghost reset-setting" data-reset-setting="imageSize" type="button">恢复默认</button></div>
         </div>
+        <section class="basic-live-preview" aria-label="当前效果预览">
+          <div class="preview-heading"><div><h3>当前效果预览</h3><p>滑块调整会立即反映在这里。</p></div><span>实时预览</span></div>
+          <div class="preview-tier-board">
+            <div class="preview-tier-label">预览分档</div>
+            <div class="preview-tier-content">
+              <article class="candidate-card kind-text"><span>纯文本选项</span></article>
+              <article class="candidate-card kind-image"><img src="${previewImageDataUrl}" alt="纯图片选项"></article>
+              <article class="candidate-card kind-composite"><img src="${previewImageDataUrl}" alt="图文选项"><span>图片 + 文本</span></article>
+            </div>
+          </div>
+        </section>
       </section>
     </div>
   `;
